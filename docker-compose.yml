@@ -1,0 +1,26 @@
+services:
+  product-service:
+    build:
+      context: ./product-service
+    container_name: product-container
+    networks:
+      - shopping-network
+    restart: unless-stopped
+
+  shopping-app:
+    build:
+      context: ./shopping-app
+    container_name: shopping-container
+    ports:
+      - "8081:8080"
+    environment:
+      PRODUCT_API_URL: http://product-service:8080/api/product
+    depends_on:
+      - product-service
+    networks:
+      - shopping-network
+    restart: unless-stopped
+
+networks:
+  shopping-network:
+    driver: bridge
