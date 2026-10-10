@@ -14,6 +14,7 @@ import java.time.Duration;
 
 @WebServlet("/")
 public class ShoppingServlet extends HttpServlet {
+
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
@@ -21,66 +22,99 @@ public class ShoppingServlet extends HttpServlet {
 
         response.setContentType("text/html;charset=UTF-8");
 
-        String apiUrl = System.getenv().getOrDefault(
-            "PRODUCT_API_URL",
-            "http://product-service:8080/api/product"
-        );
+        String productDetails = "";
+        String error = "";
 
-        String result;
-        int status = 200;
+        // Fetch product details only after button click
+        if ("true".equals(request.getParameter("details"))) {
 
-        try {
-            HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .build();
-
-            HttpRequest apiRequest = HttpRequest.newBuilder()
-                .uri(URI.create(apiUrl))
-                .timeout(Duration.ofSeconds(10))
-                .GET()
-                .build();
-
-            HttpResponse<String> apiResponse = client.send(
-                apiRequest,
-                HttpResponse.BodyHandlers.ofString()
+            String apiUrl = System.getenv().getOrDefault(
+                "PRODUCT_API_URL",
+                "http://product-service:8080/api/product"
             );
 
-            if (apiResponse.statusCode() != 200) {
-                throw new IOException(
-                    "Product API returned HTTP "
-                    + apiResponse.statusCode()
+            try {
+                HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+                HttpRequest apiRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl))
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+
+                HttpResponse<String> apiResponse = client.send(
+                    apiRequest,
+                    HttpResponse.BodyHandlers.ofString()
                 );
+
+                if (apiResponse.statusCode() == 200) {
+                    productDetails = apiResponse.body();
+                } else {
+                    error = "Product API returned HTTP "
+                            + apiResponse.statusCode();
+                }
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                error = "Product request was interrupted.";
+
+            } catch (Exception e) {
+                error = "Unable to connect to Product Service.";
+                getServletContext().log("Product API failed", e);
             }
-
-            result = apiResponse.body();
-
-            System.out.println("Received product data from Container 2:");
-            System.out.println(result);
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            status = 503;
-            result = "API request interrupted.";
-        } catch (Exception e) {
-            status = 502;
-            result = "Could not connect to Product Service.";
-            getServletContext().log("Product API request failed", e);
         }
 
-        response.setStatus(status);
-
         response.getWriter().println(
-            "<html><head><title>Shopping App</title></head><body>"
-            + "<h1>Online Shopping</h1>"
-            + "<h2>Product Details Received from Container 2</h2>"
-            + "<pre>" + escapeHtml(result) + "</pre>"
-            + "</body></html>"
+            "<!DOCTYPE html>"
+            + "<html><head><title>Online Shopping</title>"
+            + "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+
+            + "<style>"
+            + "body{font-family:Arial;background:#f1f5f9;margin:0;color:#1e293b}"
+            + ".header{background:#0f172a;color:white;padding:22px;text-align:center;font-size:28px;font-weight:bold}"
+            + ".card{background:white;max-width:650px;margin:70px auto;padding:35px 25px;text-align:center;border-radius:12px;box-shadow:0 5px 20px #0001}"
+            + "button{background:#2563eb;color:white;border:0;padding:14px 25px;border-radius:7px;font-size:17px;cursor:pointer}"
+            + "button:hover{background:#1d4ed8}"
+            + ".details{background:#eff6ff;padding:20px;margin-top:25px;border-radius:8px;text-align:left;overflow-wrap:anywhere}"
+            + "pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px}"
+            + ".error{color:#dc2626;margin-top:20px}"
+            + "</style></head><body>"
+
+            + "<div class='header'>Online Shopping</div>"
+
+            + "<div class='card'>"
+            + "<h1>Product Details</h1>"
+            + "<p>Click below to receive product information from Container 2.</p>"
+
+            + "<form method='GET' action='/'>"
+            + "<button type='submit' name='details' value='true'>"
+            + "Product Details"
+            + "</button>"
+            + "</form>"
+
+            // Display information only after the click
+            + (!productDetails.isEmpty()
+                ? "<div class='details'>"
+                    + "<h2>Product Details Received from Container 2</h2>"
+                    + "<pre>" + escapeHtml(productDetails) + "</pre>"
+                    + "</div>"
+                : "")
+
+            + (!error.isEmpty()
+                ? "<p class='error'>" + escapeHtml(error) + "</p>"
+                : "")
+
+            + "</div></body></html>"
         );
     }
 
     private String escapeHtml(String value) {
         return value.replace("&", "&amp;")
                     .replace("<", "&lt;")
-                    .replace(">", "&gt;");
+                    .replace(">", "&gt;")
+                    .replace("\"", "&quot;")
+                    .replace("'", "&#39;");
     }
 }
