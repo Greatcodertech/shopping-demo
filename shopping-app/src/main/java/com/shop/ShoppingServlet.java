@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.InetAddress;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -21,6 +22,13 @@ public class ShoppingServlet extends HttpServlet {
             throws IOException {
 
         response.setContentType("text/html;charset=UTF-8");
+
+        String containerHost;
+        try {
+            containerHost = InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            containerHost = "hostname-unavailable";
+        }
 
         String productDetails = "";
         String error = "";
@@ -86,7 +94,8 @@ public class ShoppingServlet extends HttpServlet {
 
             + "<div class='card'>"
             + "<h1>Product Details</h1>"
-            + "<p>Click below to receive product information from Container 2.</p>"
+            + "<p>Shopping container hostname: <b>" + escapeHtml(containerHost) + "</b></p>"
+            + "<p>Click below to receive product information from the product service.</p>"
 
             + "<form method='GET' action='/'>"
             + "<button type='submit' name='details' value='true'>"
