@@ -21,17 +21,15 @@ public class ShoppingServlet extends HttpServlet {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
-    private String getContainerHostname() {
-        String hostname = System.getenv("HOSTNAME");
-
-        if (hostname != null && !hostname.isBlank()) {
-            return hostname;
+    private String containerName() {
+        String name = System.getenv("HOSTNAME");
+        if (name != null && !name.isBlank()) {
+            return name;
         }
-
         try {
             return InetAddress.getLocalHost().getHostName();
         } catch (Exception e) {
-            return "hostname-unavailable";
+            return "unknown";
         }
     }
 
@@ -40,14 +38,13 @@ public class ShoppingServlet extends HttpServlet {
                          HttpServletResponse response)
             throws IOException {
 
-        String shoppingHost = getContainerHostname();
-
         response.setContentType("text/html;charset=UTF-8");
-        response.setHeader("X-Shopping-Container", shoppingHost);
         response.setHeader("Cache-Control", "no-store");
 
+        String serverName = request.getServerName();
+        String shoppingContainer = containerName();
+        String productContainer = "";
         String productDetails = "";
-        String productHost = "";
         String error = "";
 
         if ("true".equals(request.getParameter("details"))) {
@@ -70,9 +67,9 @@ public class ShoppingServlet extends HttpServlet {
 
                 if (apiResponse.statusCode() == 200) {
                     productDetails = apiResponse.body();
-                    productHost = apiResponse.headers()
+                    productContainer = apiResponse.headers()
                             .firstValue("X-Container-Hostname")
-                            .orElse("Hostname header missing");
+                            .orElse("unknown");
                 } else {
                     error = "Product API returned HTTP "
                             + apiResponse.statusCode();
@@ -81,51 +78,44 @@ public class ShoppingServlet extends HttpServlet {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 error = "Product request interrupted.";
-
             } catch (Exception e) {
-                error = "Product API error: "
+                error = "Product connection failed: "
                         + e.getClass().getSimpleName();
                 getServletContext().log("Product API failed", e);
             }
         }
 
         response.getWriter().println(
-                "<!DOCTYPE html><html><head>"
-                + "<title>Online Shopping</title>"
-                + "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+                "<!DOCTYPE html><html><head><title>Online Shopping</title>"
+                + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
                 + "<style>"
-                + "body{font-family:Arial;background:#f1f5f9;margin:0;color:#1e293b}"
-                + ".header{background:#0f172a;color:white;padding:22px;text-align:center;font-size:28px;font-weight:bold}"
-                + ".card{background:white;max-width:700px;margin:45px auto;padding:30px 25px;text-align:center;border-radius:12px;box-shadow:0 5px 20px #0001}"
-                + ".host{background:#dcfce7;padding:15px;margin:15px 0;border-radius:8px;overflow-wrap:anywhere}"
-                + ".details{background:#eff6ff;padding:20px;margin-top:25px;border-radius:8px;text-align:left;overflow-wrap:anywhere}"
+                + "body{font-family:Arial;background:#f1f5f9;color:#1e293b;margin:0}"
+                + ".header{background:#0f172a;color:white;text-align:center;padding:22px;font-size:28px;font-weight:bold}"
+                + ".card{background:white;max-width:700px;margin:45px auto;padding:30px;border-radius:12px;box-shadow:0 5px 20px #0001}"
+                + ".info{background:#dcfce7;padding:15px;border-radius:8px;overflow-wrap:anywhere;margin:12px 0}"
+                + ".details{background:#eff6ff;padding:20px;margin-top:22px;border-radius:8px;overflow-wrap:anywhere}"
                 + "button{background:#2563eb;color:white;border:0;padding:14px 25px;border-radius:7px;font-size:17px;cursor:pointer}"
-                + "pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px}"
+                + "pre{white-space:pre-wrap;overflow-wrap:anywhere}"
                 + ".error{color:#dc2626}"
                 + "</style></head><body>"
-
-                + "<div class='header'>Online Shopping</div>"
-                + "<div class='card'><h1>Container Identification</h1>"
-
-                + "<div class='host'><b>Shopping App container serving this page</b><br>"
-                + escapeHtml(shoppingHost) + "</div>"
-
-                + "<p>Click to identify the Product Service container.</p>"
+                + "<div class='header'>Online Shopping</div><div class='card'>"
+                + "<h1>Server and Container Identification</h1>"
+                + "<div class='info'><b>Server Name (requested host):</b><br>"
+                + escapeHtml(serverName) + "</div>"
+                + "<div class='info'><b>Shopping App Container Name:</b><br>"
+                + escapeHtml(shoppingContainer) + "</div>"
                 + "<form method='GET' action='/'>"
-                + "<button type='submit' name='details' value='true'>"
-                + "Get Product Details</button></form>"
-
+                + "<button name='details' value='true'>Get Product Details</button>"
+                + "</form>"
                 + (!productDetails.isEmpty()
                     ? "<div class='details'><h2>Product API Response</h2>"
-                    + "<p><b>Product Service container that handled this API request:</b><br>"
-                    + escapeHtml(productHost) + "</p>"
+                    + "<p><b>Product Service Container Name:</b><br>"
+                    + escapeHtml(productContainer) + "</p>"
                     + "<pre>" + escapeHtml(productDetails) + "</pre></div>"
                     : "")
-
                 + (!error.isEmpty()
                     ? "<p class='error'>" + escapeHtml(error) + "</p>"
                     : "")
-
                 + "</div></body></html>"
         );
     }

@@ -12,17 +12,15 @@ import java.net.InetAddress;
 @WebServlet("/api/product")
 public class ProductServlet extends HttpServlet {
 
-    private String getContainerHostname() {
-        String hostname = System.getenv("HOSTNAME");
-
-        if (hostname != null && !hostname.isBlank()) {
-            return hostname;
+    private String containerName() {
+        String name = System.getenv("HOSTNAME");
+        if (name != null && !name.isBlank()) {
+            return name;
         }
-
         try {
             return InetAddress.getLocalHost().getHostName();
         } catch (Exception e) {
-            return "hostname-unavailable";
+            return "unknown";
         }
     }
 
@@ -31,14 +29,14 @@ public class ProductServlet extends HttpServlet {
                          HttpServletResponse response)
             throws IOException {
 
-        String productHost = getContainerHostname();
+        String hostname = containerName();
 
         response.setContentType("text/plain;charset=UTF-8");
-        response.setHeader("X-Container-Hostname", productHost);
+        response.setHeader("X-Container-Hostname", hostname);
         response.setHeader("Cache-Control", "no-store");
 
         getServletContext().log(
-                "Product API request handled by container: " + productHost
+                "Product request handled by container: " + hostname
         );
 
         response.getWriter().println("Product: Laptop");
