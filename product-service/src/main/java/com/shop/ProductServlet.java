@@ -12,33 +12,35 @@ import java.net.InetAddress;
 @WebServlet("/api/product")
 public class ProductServlet extends HttpServlet {
 
+    private String getContainerHostname() {
+        String hostname = System.getenv("HOSTNAME");
+
+        if (hostname != null && !hostname.isBlank()) {
+            return hostname;
+        }
+
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            return "hostname-unavailable";
+        }
+    }
+
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
             throws IOException {
 
+        String productHost = getContainerHostname();
+
         response.setContentType("text/plain;charset=UTF-8");
-
-        // Identify the Product Service container
-        String productHost = System.getenv("HOSTNAME");
-
-        if (productHost == null || productHost.isBlank()) {
-            try {
-                productHost = InetAddress.getLocalHost().getHostName();
-            } catch (Exception e) {
-                productHost = "hostname-unavailable";
-            }
-        }
-
-        // Send container hostname to Shopping App
         response.setHeader("X-Container-Hostname", productHost);
+        response.setHeader("Cache-Control", "no-store");
 
-        // Log which container handled the request
         getServletContext().log(
-                "Product API called by container: " + productHost
+                "Product API request handled by container: " + productHost
         );
 
-        // Return product information
         response.getWriter().println("Product: Laptop");
         response.getWriter().println("Price: Rs. 50000");
         response.getWriter().println("Availability: In Stock");
