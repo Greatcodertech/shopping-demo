@@ -1,26 +1,28 @@
+
 services:
   product-service:
-    build:
-      context: ./product-service
-    container_name: product-container
+    image: greatcoderhyd/shopping-product:latest
     networks:
       - shopping-network
-    restart: unless-stopped
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
 
   shopping-app:
-    build:
-      context: ./shopping-app
-    container_name: shopping-container
+    image: greatcoderhyd/shopping-app:latest
     ports:
       - "8081:8080"
     environment:
       PRODUCT_API_URL: http://product-service:8080/api/product
-    depends_on:
-      - product-service
     networks:
       - shopping-network
-    restart: unless-stopped
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
 
 networks:
   shopping-network:
-    driver: bridge
+    driver: overlay
+
