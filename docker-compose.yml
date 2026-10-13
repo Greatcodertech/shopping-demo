@@ -1,31 +1,49 @@
+
 services:
+
+  # Product Service: returns product information
   product-service:
     image: greatcoderhyd/shopping-product:latest
+
     networks:
       - shopping-network
+
     deploy:
       replicas: 2
+
       restart_policy:
         condition: on-failure
 
+  # Shopping App: displays the website
   shopping-app:
     image: greatcoderhyd/shopping-app:latest
+
+    # Browser port 8081 -> Tomcat port 8080
     ports:
       - target: 8080
         published: 8081
         protocol: tcp
         mode: host
+
+    # URL used by the Shopping App to call Product Service
     environment:
       PRODUCT_API_URL: http://product-service:8080/api/product
+
     networks:
       - shopping-network
+
     deploy:
       replicas: 3
+
+      # One Shopping App replica per node
       placement:
         max_replicas_per_node: 1
+
       restart_policy:
         condition: on-failure
 
+# Internal network shared by both applications
 networks:
   shopping-network:
     driver: overlay
+
